@@ -7,11 +7,11 @@ Original file is located at
     https://colab.research.google.com/drive/1SH4eZop1fM05wvnz767ng4C4kVNZlhcq
 """
 
-#from google.colab import drive
-#%drive.mount('/content/gdrive')
+from google.colab import drive
+drive.mount('/content/gdrive')
 
-#import os
-#os.chdir('/content/gdrive/My Drive/MP2/')
+import os
+os.chdir('/content/gdrive/My Drive/MP2/')
 
 import numpy as np
 import cv2 
@@ -65,10 +65,27 @@ sigmaAll = np.array(sigmaAll)
 gammaAll = np.array(gammaAll)
 lamdaAll = np.array(lamdaAll)
 
-print(df.shape)
+kernels = np.array(kernels)
 
 for i in range(len(df)):
   plt.imshow(df[i])
   plt.show()
+  plt.imshow(kernels[i])
+  plt.show()
   print("theta: ", thetaAll[i], " sigma: ", sigmaAll[i], " gamme: ", gammaAll[i], " lamda: ", lamdaAll[i])
+
+ksize = 9
+sigma = 1
+theta = 0.0
+lamda = 1
+gamma = 0.75
+
+k1 = cv2.getGaborKernel((ksize, ksize), sigma, theta, lamda, gamma, 0, ktype=cv2.CV_32F)    
+plt.figure(figsize=(10,10))
+plt.imshow(k1)
+plt.show()
+fimg = cv2.filter2D(img, cv2.CV_8UC3, kernel)
+plt.figure(figsize=(10,10))
+plt.imshow(fimg)
+plt.show()
 
