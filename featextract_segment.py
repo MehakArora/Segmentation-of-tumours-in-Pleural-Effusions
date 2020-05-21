@@ -19,8 +19,8 @@ import os
 os.chdir('/content/gdrive/My Drive/MP2/')
 
 #Read Images
-img = cv2.imread('benign_4x/_11001.tif')
-img_gt = cv2.imread('benign_4x/_11001_gt.png')
+img = cv2.imread('benign_4x/_11064.tif')
+img_gt = cv2.imread('benign_4x/_11064_gt.png')
 img_gt = np.array(img_gt)
 
 #Show original and ground truth image
@@ -36,7 +36,7 @@ theta = 0.0
 gamma = 1
 
 #converting to grayscale
-img_grey= cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+img_gray= cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 kernels = []
 features = []
 
@@ -45,15 +45,25 @@ for sigma in np.arange(1,2,0.5):
     for gamma in np.arange(0.5,1.25,0.25):
       k = cv2.getGaborKernel((ksize, ksize), sigma, theta, lamda, gamma, 0, ktype=cv2.CV_32F)   
       kernels.append(k) 
-      fimg = cv2.filter2D(img_grey, cv2.CV_8UC1, k)
+      fimg = cv2.filter2D(img_gray, cv2.CV_8UC1, k)
       #fimg = cv2.GaussianBlur(fimg, (15,15), 5, 5)
       fimg = cv2.medianBlur(fimg, 11)
       fimg = fimg.reshape((fimg.shape[0]*fimg.shape[1],))
       features.append(fimg)
+      #ColourImage
+      #fimg = cv2.filter2D(img, cv2.CV_8UC1, k)
+      #fimg = cv2.GaussianBlur(fimg, (15,15), 5, 5)
+      #fimg = cv2.medianBlur(fimg, 11)
+      #fimg = fimg.reshape((fimg.shape[0]*fimg.shape[1],3))
+      #features.append(fimg[:,0])
+      #features.append(fimg[:,1])
+      #features.append(fimg[:,2])
 
 features = np.array(features)
 features = features.T
 kernels = np.array(kernels)
+
+
 
 #K Means Clustering
 kmeans = KMeans(n_clusters=3)
@@ -73,7 +83,7 @@ fig.show
 contours, heirarchy = cv2.findContours(np.uint8(img_seg), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
 #Finding top n contours with maximum areas
-n = 2
+n = 14
 areas = []
 
 for cnt in contours:
@@ -86,8 +96,9 @@ max1 = contours[ind[0]]
 max2 = contours[ind[1]]
 
 z = np.zeros(img_seg.shape)
-cv2.drawContours(z,contours[ind[0]], -1,(255,255,255), 3 )
-cv2.drawContours(z,contours[ind[1]], -1,(255,255,255), 3 )
+
+for i in np.arange(0,n,1):
+  cv2.drawContours(z,contours[ind[i]], -1,(255,255,255), 3 )
 
 plt.imshow(z, cmap = 'gray')
 plt.show()
@@ -102,15 +113,18 @@ plt.show()
 cellClusterLabel = labels[np.argmax(counts)]
 print(cellClusterLabel)
 masked_img_inv = masked_image == False
-isolatedMask = ((img_seg *masked_img_inv) == cellClusterLabel).astype(int)
+backgroundMask = (img_seg == 0)
+isolatedMask = ((img_seg *masked_img_inv) == 2).astype(int)
 isolatedMask[masked_image] = 2
+
+isolatedMask[backgroundMask] = 0
 
 img_gt_gray = cv2.cvtColor(img_gt, cv2.COLOR_BGR2GRAY)
 
 #Plotting correctly labelled Segmented Image
 fig, (a1,a2,a3) = plt.subplots(1,3, figsize=(25,25))
 a1.imshow(img)
-a2.imshow(img_gt)
+a2.imshow(img_gt_gray, cmap = 'gray')
 a3.imshow(isolatedMask, cmap = 'gray')
 fig.show
 
