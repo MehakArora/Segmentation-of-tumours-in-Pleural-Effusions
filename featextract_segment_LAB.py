@@ -189,6 +189,8 @@ a2.imshow(img_gt3 , cmap = 'gray')
 a3.imshow(img_seg3 == cell3, cmap = 'gray')
 fig.show()
 
+counts = np.bincount(img_seg2.flatten())
+
 #Find Background Class - most populated class
 counts = np.bincount(img_seg1.flatten())
 background1 = np.argmax(counts)
@@ -275,14 +277,57 @@ else:
   cell3 = clusters[1]
   cyto3 = clusters[0]
 
+def find_tumors(img, cell, cyto, background):
+  contours, heirarchy = cv2.findContours(np.uint8(img), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+  n = len(contours)
+  areas = []
+  for cnt in contours:
+    area = cv2.contourArea(cnt)
+    areas.append(area)
+
+  areas = np.array(areas)
+  ind = np.argsort(-1*areas)
+  thresh = np.mean(areas) + np.std(areas)
+  z = np.zeros(img_seg1.shape)
+  tumor = []
+  check = 0
+
+  for i in np.arange(0,n,1):
+    z = np.zeros(img.shape)
+    if(areas[i]>=thresh):
+      cv2.drawContours(z,contours[i], -1,(255,255,255), 3 )
+      masked_image = scipy.ndimage.morphology.binary_fill_holes(z)
+      z[masked_image] = img[masked_image]
+      counts = np.bincount(img_seg2.flatten())
+      if(counts[cell] >= counts[cyto]):
+        tumor.append(i)
+        img[masked_image] = cell
+      else:
+        img[z == cyto] = background
+        check = 1
+
+  imgr = np.copy(img) 
+  if(check):
+    print("again")
+    imgr = find_tumors(img, cell, cyto, background)
+
+  return imgr
+
+img_seg3_copy = np.copy(img_seg3)
+imgr3 = find_tumors(img_seg3_copy, cell3, cyto3, background3)
+fig, (p1,p2) = plt.subplots(1,2,figsize = (20,20))
+p1.imshow(imgr3, cmap = 'gray')
+p2.imshow(img_gt3)
+plt.show()
+
 #Find Contours
-contours3, heirarchy = cv2.findContours(np.uint8(img_seg3m), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+contours1, heirarchy = cv2.findContours(np.uint8(img_seg1), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
 #Finding top n contours with maximum areas
-n = len(contours)
+n = len(contours1)
 areas = []
 
-for cnt in contours:
+for cnt in contours1:
   area = cv2.contourArea(cnt)
   areas.append(area)
 
@@ -290,32 +335,39 @@ areas = np.array(areas)
 ind = np.argsort(-1*areas)
 
 
-z = np.zeros(img_seg3.shape)
+z = np.zeros(img_seg1.shape)
 thresh = np.mean(areas)+np.std(areas)
 for i in np.arange(0,n,1):
   if(areas[i]>=0):
-    cv2.drawContours(z,contours[i], -1,(255,255,255), 3 )
+    cv2.drawContours(z,contours1[i], -1,(255,255,255), 3 )
 
 plt.imshow(z, cmap = 'gray')
 plt.show()
 print(thresh)
 
-#masked_image = scipy.ndimage.morphology.binary_fill_holes(z)
-#plt.imshow(masked_image, cmap = 'gray')
-#plt.show()
+masked_image = scipy.ndimage.morphology.binary_fill_holes(z)
+plt.imshow(masked_image, cmap = 'gray')
+plt.show()
+print(np.unique(masked_image))
 
-plt.plot(areas[ind], 'o-r')
+areas1 = areas
+
+z1 = (areas1 - np.mean(areas1))/np.std(areas1)
+plt.plot(z1[np.argsort(-z1)], 'o-r')
 plt.xlim([-5,100])
 plt.show()
 
-clusters = np.unique(y)
-clusters = clusters[1:]
+z2 = (areas2 - np.mean(areas2))/np.std(areas2)
+plt.plot(z2[np.argsort(-z2)], 'o-r')
+plt.xlim([-5,100])
+plt.show()
 
-mask1 = np.zeros(img_seg2.shape)
-mask2 = np.zeros(img_seg2.shape)
+z3 = (areas3 - np.mean(areas3))/np.std(areas3)
+plt.plot(z3[np.argsort(-z3)], 'o-r')
+plt.xlim([-5,100])
+plt.show()
 
-mask1[img_seg1 == clusters[0]] = 255
-mask2[img_seg1 == clusters[1]] = 255
+
 
 """HISTOGRAM"""
 
@@ -375,7 +427,7 @@ plt.plot(hist)
 plt.show()
 
 plt.figure(figsize = (15,15))
-plt.hist(areas,100)
+plt.hist(areas,len(areas))
 plt.show()
 print(np.mean(areas) + np.std(areas))
 
