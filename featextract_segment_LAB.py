@@ -452,12 +452,46 @@ a2.imshow(img_gt_gray, cmap = 'gray')
 a3.imshow(isolatedMask, cmap = 'gray')
 fig.show
 
-#Calculate dice score 
+#Calculate dice score
+num_clusters = 4
+gray_values=[]
+img_shape = img_gt_gray.shape
+img_gt_gray.reshape(img_shape[0]*img_shape[1])
+isolatedMask.reshape(img_shape[0]*img_shape[1])
+for i in range(num_clusters-1):
+  gray_values.append(int(np.mean(img_gt_gray[(img_gt_gray>=255*i/4) & (img_gt_gray<255*(i+1)/4)])))
+gray_values.append(255)
+print(gray_values)
+for i in range(num_clusters):
+  img_gt_gray[img_gt_gray==gray_values[i]]=i
+
+gt_pixel_ratios=[]
+seg_pixel_ratios=[]
+for i in range(num_clusters):
+  seg_pixel_ratios.append(np.sum(isolatedMask[isolatedMask==i]==i))
+  gt_pixel_ratios.append(np.sum(img_gt_gray[img_gt_gray==i]==i))
+
+print(seg_pixel_ratios)
+print(gt_pixel_ratios)
+
+seg_order = np.argsort(seg_pixel_ratios)
+print(seg_order)
+
+gt_order = np.argsort(gt_pixel_ratios)
+print(gt_order)
+
+for i in range(num_clusters):
+  isolatedMask[isolatedMask==seg_order[i]]= -gt_order[i]
+for i in range(num_clusters):
+  isolatedMask[isolatedMask==(-i)]= i 
+isolatedMask.reshape((img_shape[0],img_shape[1]))
+plt.imshow(isolatedMask,cmap='gray')
+
+img_gt_gray.reshape((img_shape[0],img_shape[1]))
 
 dice = []
-for k in (0,1,2):
-  dice.append(np.sum(isolatedMask[img_gt==k])*2.0 / (np.sum(isolatedMask) + np.sum(img_gt)))
-
+for k in range(num_clusters):
+  dice.append(np.sum(isolatedMask[img_gt_gray==k]==k)*2.0 / (np.sum(isolatedMask[isolatedMask==k]==k) + np.sum(img_gt_gray[img_gt_gray==k]==k)))
 print(dice)
 
 #Benign - 4x - 011
