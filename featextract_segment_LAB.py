@@ -244,18 +244,19 @@ p2.imshow(img_gt3)
 plt.show()
 
 """Dice Score"""
-
-num_clusters = 4
+isolatedMask = img_seg3
+img_gt_gray = cv2.cvtColor(img_gt3,cv2.COLOR_BGR2GRAY)
+num_clusters = 3
 gray_values=[]
 img_shape = img_gt_gray.shape
 img_gt_gray.reshape(img_shape[0]*img_shape[1])
 isolatedMask.reshape(img_shape[0]*img_shape[1])
 for i in range(num_clusters-1):
-  gray_values.append(int(np.mean(img_gt_gray[(img_gt_gray>=255*i/4) & (img_gt_gray<255*(i+1)/4)])))
+  gray_values.append(int(np.mean(img_gt_gray[(img_gt_gray>=255*i/(num_clusters)) & (img_gt_gray<255*(i+1)/(num_clusters))])))
 gray_values.append(255)
 print(gray_values)
 for i in range(num_clusters):
-  img_gt_gray[img_gt_gray==gray_values[i]]=i
+  img_gt_gray[img_gt_gray==gray_values[i]]=num_clusters-1-i
 
 gt_pixel_ratios=[]
 seg_pixel_ratios=[]
@@ -273,14 +274,14 @@ gt_order = np.argsort(gt_pixel_ratios)
 print(gt_order)
 
 for i in range(num_clusters):
-  isolatedMask[isolatedMask==seg_order[i]]= -gt_order[i]
+  isolatedMask[isolatedMask==seg_order[i]]= num_clusters+i
 for i in range(num_clusters):
-  isolatedMask[isolatedMask==(-i)]= i 
+  isolatedMask[isolatedMask==(num_clusters+i)]= num_clusters-1-i
 isolatedMask.reshape((img_shape[0],img_shape[1]))
-plt.imshow(isolatedMask,cmap='gray')
+#plt.imshow(isolatedMask,cmap='gray')
 
 img_gt_gray.reshape((img_shape[0],img_shape[1]))
-
+plt.imshow(img_gt_gray,cmap='gray')
 dice = []
 for k in range(num_clusters):
   dice.append(np.sum(isolatedMask[img_gt_gray==k]==k)*2.0 / (np.sum(isolatedMask[isolatedMask==k]==k) + np.sum(img_gt_gray[img_gt_gray==k]==k)))
