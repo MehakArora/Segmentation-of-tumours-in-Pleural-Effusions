@@ -29,142 +29,106 @@ img_gt1 = np.array(img_gt1)
 img_gt2 = np.array(img_gt2)
 img_gt3 = np.array(img_gt3)
 
-#Image1
-lab1= cv2.cvtColor(img1, cv2.COLOR_BGR2LAB)
-plt.imshow(lab1)
-plt.show()
+def cvt2LAB(img, show):
+  lab= cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+  plt.imshow(lab)
+  if(show):
+    plt.show()
+  
+  l, a, b = cv2.split(lab)
+  plt.imshow(l, cmap ='gray')
+  if(show):
+    plt.show()
+  plt.imshow(a, cmap= 'gray')
+  if(show):
+    plt.show()  
+  plt.imshow(b, cmap = 'gray')
+  if(show):
+    plt.show()
 
-l1, a1, b1 = cv2.split(lab1)
-plt.imshow(l1, cmap ='gray')
-plt.show()
-plt.imshow(a1, cmap= 'gray')
-plt.show()
-plt.imshow( b1, cmap = 'gray')
-plt.show()
+  labm = cv2.medianBlur(lab, 9)
+  plt.imshow(labm)
+  if(show):
+    plt.show()
 
-labm1 = cv2.medianBlur(lab1, 9)
-plt.imshow(labm1)
-plt.show()
+  return lab, labm, l, a, b
 
-#Image2
-lab2= cv2.cvtColor(img2, cv2.COLOR_BGR2LAB)
-plt.imshow(lab2)
-plt.show()
 
-l2, a2, b2 = cv2.split(lab2)
-plt.imshow(l2, cmap ='gray')
-plt.show()
-plt.imshow(a2, cmap= 'gray')
-plt.show()
-plt.imshow( b2, cmap = 'gray')
-plt.show()
+lab1,labm1, l1, a1, b1 = cvt2LAB(img1,1)
+lab2,labm2, l2, a2, b2 = cvt2LAB(img2,1)
+lab3,labm3, l2, a3, b3 = cvt2LAB(img3,1)
 
-labm2 = cv2.medianBlur(lab2, 9)
-plt.imshow(labm2)
-plt.show()
+def extractGabor(img, ksizeRange, sigmaRange, thetaRange, gammaRange, lamdaRange, show):
 
-#Image 3
-lab3= cv2.cvtColor(img3, cv2.COLOR_BGR2LAB)
-plt.imshow(lab3)
-plt.show()
+  features = []
+  channels = len(img.shape)
+  
+  for ksize in np.arange(ksizeRange[0], ksizeRange[1], ksizeRange[2]):
+    for sigma in np.arange(sigmaRange[0], sigmaRange[1], sigmaRange[2]):
+      for lamda in np.arange(lamdaRange[0], lamdaRange[1], lamdaRange[2]):
+        for gamma in np.arange(gammaRange[0], gammaRange[1], gammaRange[2]):
+          for theta in np.arange(thetaRange[0], thetaRange[1], thetaRange[2]):
+            k = cv2.getGaborKernel((ksize, ksize), sigma, theta, lamda, gamma, 0, ktype=cv2.CV_32F)   
+            fimg = cv2.filter2D(img, cv2.CV_8UC1, k)
+            fimg = cv2.medianBlur(fimg, 5)
+            
+            if(show):
+              plt.figure(figsize = (8,8))
+              plt.imshow(fimg)
+              plt.show()
+              print(ksize, sigma, gamma, lamda, theta)
+            
+            if(channels == 1):
+              fimg = fimg.reshape((fimg.shape[0]*fimg.shape[1],))
+              features.append(fimg)
+            elif(channels == 3):
+              fimg = fimg.reshape((fimg.shape[0]*fimg.shape[1],3))
+              features.append(fimg[:,0])
+              features.append(fimg[:,1])
+              features.append(fimg[:,2])
+            else:
+              print("Channels error")
+              return 0
 
-l3, a3, b3 = cv2.split(lab3)
-plt.imshow(l3, cmap ='gray')
-plt.show()
-plt.imshow(a3, cmap= 'gray')
-plt.show()
-plt.imshow( b3, cmap = 'gray')
-plt.show()
+  
+  features = np.array(features)
+  features = features.T
+  return features
 
-labm3 = cv2.medianBlur(lab3, 9)
-plt.imshow(labm3)
-plt.show()
+#extractGabor(img, ksizeRange, sigmaRange, thetaRange, gammaRange, lamdaRange, show)
+features1 = extractGabor(lab1, [9,10,2], [1,2,1], [0,1,1], [0.5,1.25,0.25], [3.25,4.1,0.25], 0)
+features2 = extractGabor(lab2, [9,10,2], [1,2,1], [0,1,1], [0.5,1.25,0.25], [3.25,4.1,0.25], 0)
+features3 = extractGabor(lab3, [9,10,2], [1,2,1], [0,1,1], [0.5,1.25,0.25], [3.25,4.1,0.25], 0)
 
-plt.imshow(lab3[:,:,1])
-plt.show()
+def addLABfeatures(features, labm):
+  features = np.hstack((features,labm[:,:,0].reshape((labm.shape[0]*labm.shape[1]),1)))
+  features = np.hstack((features,labm[:,:,1].reshape((labm.shape[0]*labm.shape[1]),1)))
+  features = np.hstack((features,labm[:,:,2].reshape((labm.shape[0]*labm.shape[1]),1)))
+  return features
 
-#Extract Gabor Features
+features1 = addLABfeatures(features1, labm1)
+features2 = addLABfeatures(features2, labm2)
+features3 = addLABfeatures(features3, labm3)
 
-ksize = 9  # Size of Gabor kernel
-theta = 0.0 
-gamma = 1
-sigma = 1
-#converting to grayscale
-#img_gray= cv2.cvtColor(img2_clean, cv2.COLOR_BGR2GRAY)
-kernels = []
-features = []
-i = 0
-for sigma in np.arange(1,1.2,0.5):
-  for lamda in np.arange(3.25,4.1,0.25):
-    for gamma in np.arange(0.5,1.25,0.25):
-      k = cv2.getGaborKernel((ksize, ksize), sigma, theta, lamda, gamma, 0, ktype=cv2.CV_32F)   
-      kernels.append(k) 
-      fimg = cv2.filter2D(lab3, cv2.CV_8UC1, k)
-      #fimg = cv2.GaussianBlur(fimg, (15,15), 5, 5)
-      fimg = cv2.medianBlur(fimg, 5)
-      #plt.imshow(fimg)
-      #plt.show()
-      plt.figure(figsize = (8,8))
-      plt.imshow(fimg)
-      plt.show()
-      print(ksize, lamda, gamma, i)
-      i = i+1
-      #fimg = fimg.reshape((fimg.shape[0]*fimg.shape[1],))
-      #features.append(fimg)
-      #ColourImage
-      #fimg = cv2.filter2D(imgHSV[:,:,2], cv2.CV_8UC1, k)
-      #fimg = cv2.GaussianBlur(fimg, (15,15), 5, 5)
-      #fimg = cv2.medianBlur(fimg, 11)
+def kmeansClustering(features, n_clusters):
+  kmeans = KMeans(n_clusters=3, init = 'k-means++')
+  kmeans.fit(features)
+  y = kmeans.predict(features)
+  return kmeans, y
 
-      fimg = fimg.reshape((fimg.shape[0]*fimg.shape[1],3))
-      features.append(fimg[:,0])
-      features.append(fimg[:,1])
-      features.append(fimg[:,2])
+[kmeans1, y1] = kmeansClustering(features1, 3)
+img_seg1 = y1.reshape((img1.shape[0], img1.shape[1]))
+img_seg_copy1 = np.copy(img_seg1) 
 
-features3 = np.array(features)
-features3 = features3.T
-kernels = np.array(kernels)
+[kmeans2, y2] = kmeansClustering(features2, 3)
+img_seg2 = y2.reshape((img2.shape[0], img2.shape[1]))
+img_seg_copy2 = np.copy(img_seg2) 
 
-features3 = np.hstack((features3,labm3[:,:,0].reshape((img1.shape[0]*img1.shape[1]),1)))
-features3 = np.hstack((features3, labm3[:,:,1].reshape((img1.shape[0]*img1.shape[1]),1)))
-features3 = np.hstack((features3,labm3[:,:,2].reshape((img1.shape[0]*img1.shape[1]),1)))
-
-#K Means Clustering
-kmeans = KMeans(n_clusters=3, init = 'k-means++')
-kmeans.fit(features3)
-y = kmeans.predict(features3)
-img_seg3 = y.reshape((img1.shape[0], img1.shape[1]))
+[kmeans3, y3] = kmeansClustering(features3, 3)
+img_seg3 = y3.reshape((img3.shape[0], img3.shape[1]))
 img_seg_copy3 = np.copy(img_seg3)
 
-
-
-transF3 = kmeans.transform(features3)
-dist = transF3[:,2]
-dist[y!=2] = 0
-plt.hist(dist[dist!=0], 200)
-plt.xlim([0,250])
-#plt.plot(dist)
-plt.show()
-
-#dist[dist  60] = 0
-ind_change = np.where(dist != 0)[0]
-img_check = np.zeros(dist.shape)
-listimg = lab3[:,:,1].reshape(lab3[:,:,1].shape[0]* lab3[:,:,1].shape[1],)
-print(listimg.shape)
-img_check[ind_change] = 255
-img_check = img_check.reshape(img3.shape[0],img3.shape[1])
-img_see = np.copy(lab3)
-img_see[img_check == 0] = 0  
-plt.figure(figsize = (20,20))
-plt.imshow(img_see, cmap = 'gray')
-plt.show()
-
-
-
-plt.figure(figsize = (20,20))
-plt.imshow(img_seg3==1, cmap = 'gray')
-plt.show()
-
+#Removing small regions of cytoplasm
 img_seg1 = cv2.medianBlur(np.uint8(img_seg1), 9)
 img_seg2 = cv2.medianBlur(np.uint8(img_seg2), 9)
 img_seg3 = cv2.medianBlur(np.uint8(img_seg3), 9)
@@ -174,108 +138,67 @@ img_seg3 = cv2.medianBlur(np.uint8(img_seg3), 9)
 fig, (a1,a2,a3) = plt.subplots(1,3, figsize=(30,30))
 a1.imshow(img1, cmap = 'gray')
 a2.imshow(img_gt1 , cmap = 'gray')
-a3.imshow(img_seg1 == cell1, cmap = 'gray')
+a3.imshow(img_seg1, cmap = 'gray')
 fig.show()
 
 fig, (a1,a2,a3) = plt.subplots(1,3, figsize=(30,30))
 a1.imshow(img2, cmap = 'gray')
 a2.imshow(img_gt2 , cmap = 'gray')
-a3.imshow(img_seg2 == cell2, cmap = 'gray')
+a3.imshow(img_seg2, cmap = 'gray')
 fig.show()
 
 fig, (a1,a2,a3) = plt.subplots(1,3, figsize=(30,30))
 a1.imshow(img3, cmap = 'gray')
 a2.imshow(img_gt3 , cmap = 'gray')
-a3.imshow(img_seg3 == cell3, cmap = 'gray')
+a3.imshow(img_seg3, cmap = 'gray')
 fig.show()
 
-counts = np.bincount(img_seg2.flatten())
+#Find Background Class as most populated class and setting it to zero
 
-#Find Background Class - most populated class
-counts = np.bincount(img_seg1.flatten())
-background1 = np.argmax(counts)
-if(background1):
-  print("Changing 1")
-  img_seg1[img_seg1 == background1] = 255
-  img_seg1[img_seg1 == 0] = background1
-  img_seg1[img_seg1 == 255] = 0
+def bgToZero(img_seg):
+  counts = np.bincount(img_seg.flatten())
+  background = np.argmax(counts)
+  if(background):
+    print("Changing BG")
+    img_seg[img_seg == background] = 255
+    img_seg[img_seg == 0] = background
+    img_seg[img_seg == 255] = 0
+  return img_seg
 
-counts = np.bincount(img_seg2.flatten())
-background2 = np.argmax(counts)
-if(background2):
-  print("Changing 2")
-  img_seg2[img_seg2 == background2] = 255
-  img_seg2[img_seg2 == 0] = background2
-  img_seg2[img_seg2 == 255] = 0
-
-counts = np.bincount(img_seg3.flatten())
-background3 = np.argmax(counts)
-if(background3):
-  print("Changing 3")
-  img_seg3[img_seg3 == background3] = 255
-  img_seg3[img_seg3 == 0] = background3
-  img_seg3[img_seg3 == 255] = 0
+img_seg1 = bgToZero(img_seg1)
+img_seg2 = bgToZero(img_seg2)
+img_seg3 = bgToZero(img_seg3)
 
 #Finding Cell and Cytoplasm Clusters
-#Img1
-clusters = np.unique(img_seg1)
-clusters = clusters[1:]
-mask1 = np.zeros(img_seg1.shape)
-mask2 = np.zeros(img_seg1.shape)
-mask1[img_seg1 == clusters[0]] = 255
-mask2[img_seg1 == clusters[1]] = 255
 
-hist1 = cv2.calcHist([lab1],[1],np.uint8(mask1),[255],[0,256])
-peak1 = np.argsort(-hist1.flatten())[0]
-hist2 = cv2.calcHist([lab1],[1],np.uint8(mask2),[255],[0,256])
-peak2 = np.argsort(-hist2.flatten())[0]
+def findCorrectLabel(img_seg, lab):
 
-if(peak1 > peak2):
-  cell1 = clusters[0]
-  cyto1 = clusters[1]
-else:
-  cell1 = clusters[1]
-  cyto1 = clusters[0]
+  clusters = np.unique(img_seg)
+  clusters = clusters[1:]   #As label zero is background
+  #Masks for each label
+  mask1 = np.zeros(img_seg.shape)
+  mask2 = np.zeros(img_seg.shape)
+  mask1[img_seg == clusters[0]] = 255
+  mask2[img_seg == clusters[1]] = 255
+  
+  #Finding histogram for a space
+  hist1 = cv2.calcHist([lab],[1],np.uint8(mask1),[255],[0,256])
+  peak1 = np.argsort(-hist1.flatten())[0]
+  hist2 = cv2.calcHist([lab],[1],np.uint8(mask2),[255],[0,256])
+  peak2 = np.argsort(-hist2.flatten())[0]
 
-#img2
-clusters = np.unique(img_seg2)
-clusters = clusters[1:]
-mask1 = np.zeros(img_seg2.shape)
-mask2 = np.zeros(img_seg2.shape)
-mask1[img_seg2 == clusters[0]] = 255
-mask2[img_seg2 == clusters[1]] = 255
+  if(peak1 > peak2):
+    cell = clusters[0]
+    cyto = clusters[1]
+  else:
+    cell = clusters[1]
+    cyto = clusters[0]
+  
+  return cell, cyto
 
-hist1 = cv2.calcHist([lab2],[1],np.uint8(mask1),[255],[0,256])
-peak1 = np.argsort(-hist1.flatten())[0]
-hist2 = cv2.calcHist([lab2],[1],np.uint8(mask2),[255],[0,256])
-peak2 = np.argsort(-hist2.flatten())[0]
-
-if(peak1 > peak2):
-  cell2 = clusters[0]
-  cyto2 = clusters[1]
-else:
-  cell2 = clusters[1]
-  cyto2 = clusters[0]
-
-#Img3
-clusters = np.unique(img_seg3)
-clusters = clusters[1:]
-mask1 = np.zeros(img_seg3.shape)
-mask2 = np.zeros(img_seg3.shape)
-mask1[img_seg3 == clusters[0]] = 255
-mask2[img_seg3 == clusters[1]] = 255
-
-hist1 = cv2.calcHist([lab3],[1],np.uint8(mask1),[255],[0,256])
-peak1 = np.argsort(-hist1.flatten())[0]
-hist2 = cv2.calcHist([lab3],[1],np.uint8(mask2),[255],[0,256])
-peak2 = np.argsort(-hist2.flatten())[0]
-
-if(peak1 > peak2):
-  cell3 = clusters[0]
-  cyto3 = clusters[1]
-else:
-  cell3 = clusters[1]
-  cyto3 = clusters[0]
+cell1, cyto1 = findCorrectLabel(img_seg1, lab1)
+cell2, cyto2 = findCorrectLabel(img_seg2, lab2)
+cell3, cyto3 = findCorrectLabel(img_seg3, lab3)
 
 def find_tumors(img, cell, cyto, background):
   contours, heirarchy = cv2.findContours(np.uint8(img), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
@@ -320,54 +243,48 @@ p1.imshow(imgr3, cmap = 'gray')
 p2.imshow(img_gt3)
 plt.show()
 
-#Find Contours
-contours1, heirarchy = cv2.findContours(np.uint8(img_seg1), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+"""Dice Score"""
 
-#Finding top n contours with maximum areas
-n = len(contours1)
-areas = []
+num_clusters = 4
+gray_values=[]
+img_shape = img_gt_gray.shape
+img_gt_gray.reshape(img_shape[0]*img_shape[1])
+isolatedMask.reshape(img_shape[0]*img_shape[1])
+for i in range(num_clusters-1):
+  gray_values.append(int(np.mean(img_gt_gray[(img_gt_gray>=255*i/4) & (img_gt_gray<255*(i+1)/4)])))
+gray_values.append(255)
+print(gray_values)
+for i in range(num_clusters):
+  img_gt_gray[img_gt_gray==gray_values[i]]=i
 
-for cnt in contours1:
-  area = cv2.contourArea(cnt)
-  areas.append(area)
+gt_pixel_ratios=[]
+seg_pixel_ratios=[]
+for i in range(num_clusters):
+  seg_pixel_ratios.append(np.sum(isolatedMask[isolatedMask==i]==i))
+  gt_pixel_ratios.append(np.sum(img_gt_gray[img_gt_gray==i]==i))
 
-areas = np.array(areas)
-ind = np.argsort(-1*areas)
+print(seg_pixel_ratios)
+print(gt_pixel_ratios)
 
+seg_order = np.argsort(seg_pixel_ratios)
+print(seg_order)
 
-z = np.zeros(img_seg1.shape)
-thresh = np.mean(areas)+np.std(areas)
-for i in np.arange(0,n,1):
-  if(areas[i]>=0):
-    cv2.drawContours(z,contours1[i], -1,(255,255,255), 3 )
+gt_order = np.argsort(gt_pixel_ratios)
+print(gt_order)
 
-plt.imshow(z, cmap = 'gray')
-plt.show()
-print(thresh)
+for i in range(num_clusters):
+  isolatedMask[isolatedMask==seg_order[i]]= -gt_order[i]
+for i in range(num_clusters):
+  isolatedMask[isolatedMask==(-i)]= i 
+isolatedMask.reshape((img_shape[0],img_shape[1]))
+plt.imshow(isolatedMask,cmap='gray')
 
-masked_image = scipy.ndimage.morphology.binary_fill_holes(z)
-plt.imshow(masked_image, cmap = 'gray')
-plt.show()
-print(np.unique(masked_image))
+img_gt_gray.reshape((img_shape[0],img_shape[1]))
 
-areas1 = areas
-
-z1 = (areas1 - np.mean(areas1))/np.std(areas1)
-plt.plot(z1[np.argsort(-z1)], 'o-r')
-plt.xlim([-5,100])
-plt.show()
-
-z2 = (areas2 - np.mean(areas2))/np.std(areas2)
-plt.plot(z2[np.argsort(-z2)], 'o-r')
-plt.xlim([-5,100])
-plt.show()
-
-z3 = (areas3 - np.mean(areas3))/np.std(areas3)
-plt.plot(z3[np.argsort(-z3)], 'o-r')
-plt.xlim([-5,100])
-plt.show()
-
-
+dice = []
+for k in range(num_clusters):
+  dice.append(np.sum(isolatedMask[img_gt_gray==k]==k)*2.0 / (np.sum(isolatedMask[isolatedMask==k]==k) + np.sum(img_gt_gray[img_gt_gray==k]==k)))
+print(dice)
 
 """HISTOGRAM"""
 
@@ -408,6 +325,33 @@ a4.imshow(X[3].reshape(1440,1920), cmap = 'gray')
 fig.show()
 
 """ANALYSIS"""
+
+#Finding top n contours with maximum areas
+n = len(contours1)
+areas = []
+
+for cnt in contours1:
+  area = cv2.contourArea(cnt)
+  areas.append(area)
+
+areas = np.array(areas)
+ind = np.argsort(-1*areas)
+
+
+z = np.zeros(img_seg1.shape)
+thresh = np.mean(areas)+np.std(areas)
+for i in np.arange(0,n,1):
+  if(areas[i]>=0):
+    cv2.drawContours(z,contours1[i], -1,(255,255,255), 3 )
+
+plt.imshow(z, cmap = 'gray')
+plt.show()
+print(thresh)
+
+masked_image = scipy.ndimage.morphology.binary_fill_holes(z)
+plt.imshow(masked_image, cmap = 'gray')
+plt.show()
+print(np.unique(masked_image))
 
 mask = img_seg !=2
 view = np.copy(lab)
@@ -452,46 +396,12 @@ a2.imshow(img_gt_gray, cmap = 'gray')
 a3.imshow(isolatedMask, cmap = 'gray')
 fig.show
 
-#Calculate dice score
-num_clusters = 4
-gray_values=[]
-img_shape = img_gt_gray.shape
-img_gt_gray.reshape(img_shape[0]*img_shape[1])
-isolatedMask.reshape(img_shape[0]*img_shape[1])
-for i in range(num_clusters-1):
-  gray_values.append(int(np.mean(img_gt_gray[(img_gt_gray>=255*i/4) & (img_gt_gray<255*(i+1)/4)])))
-gray_values.append(255)
-print(gray_values)
-for i in range(num_clusters):
-  img_gt_gray[img_gt_gray==gray_values[i]]=i
-
-gt_pixel_ratios=[]
-seg_pixel_ratios=[]
-for i in range(num_clusters):
-  seg_pixel_ratios.append(np.sum(isolatedMask[isolatedMask==i]==i))
-  gt_pixel_ratios.append(np.sum(img_gt_gray[img_gt_gray==i]==i))
-
-print(seg_pixel_ratios)
-print(gt_pixel_ratios)
-
-seg_order = np.argsort(seg_pixel_ratios)
-print(seg_order)
-
-gt_order = np.argsort(gt_pixel_ratios)
-print(gt_order)
-
-for i in range(num_clusters):
-  isolatedMask[isolatedMask==seg_order[i]]= -gt_order[i]
-for i in range(num_clusters):
-  isolatedMask[isolatedMask==(-i)]= i 
-isolatedMask.reshape((img_shape[0],img_shape[1]))
-plt.imshow(isolatedMask,cmap='gray')
-
-img_gt_gray.reshape((img_shape[0],img_shape[1]))
+#Calculate dice score 
 
 dice = []
-for k in range(num_clusters):
-  dice.append(np.sum(isolatedMask[img_gt_gray==k]==k)*2.0 / (np.sum(isolatedMask[isolatedMask==k]==k) + np.sum(img_gt_gray[img_gt_gray==k]==k)))
+for k in (0,1,2):
+  dice.append(np.sum(isolatedMask[img_gt==k])*2.0 / (np.sum(isolatedMask) + np.sum(img_gt)))
+
 print(dice)
 
 #Benign - 4x - 011
@@ -658,3 +568,117 @@ imgb_clean = np.copy(b)
 imgb_clean[mask3] = 255
 imgb_clean = cv2.medianBlur(imgb_clean, 9)
 
+#Extract Gabor Features
+
+ksize = 9  # Size of Gabor kernel
+theta = 0.0 
+gamma = 1
+sigma = 1
+#converting to grayscale
+#img_gray= cv2.cvtColor(img2_clean, cv2.COLOR_BGR2GRAY)
+kernels = []
+features = []
+i = 0
+for sigma in np.arange(1,1.2,0.5):
+  for lamda in np.arange(3.25,4.1,0.25):
+    for gamma in np.arange(0.5,1.25,0.25):
+      k = cv2.getGaborKernel((ksize, ksize), sigma, theta, lamda, gamma, 0, ktype=cv2.CV_32F)   
+      kernels.append(k) 
+      fimg = cv2.filter2D(lab3, cv2.CV_8UC1, k)
+      #fimg = cv2.GaussianBlur(fimg, (15,15), 5, 5)
+      fimg = cv2.medianBlur(fimg, 5)
+      #plt.imshow(fimg)
+      #plt.show()
+      plt.figure(figsize = (8,8))
+      plt.imshow(fimg)
+      plt.show()
+      print(ksize, lamda, gamma, i)
+      i = i+1
+      #fimg = fimg.reshape((fimg.shape[0]*fimg.shape[1],))
+      #features.append(fimg)
+      #ColourImage
+      #fimg = cv2.filter2D(imgHSV[:,:,2], cv2.CV_8UC1, k)
+      #fimg = cv2.GaussianBlur(fimg, (15,15), 5, 5)
+      #fimg = cv2.medianBlur(fimg, 11)
+
+      fimg = fimg.reshape((fimg.shape[0]*fimg.shape[1],3))
+      features.append(fimg[:,0])
+      features.append(fimg[:,1])
+      features.append(fimg[:,2])
+
+transF3 = kmeans.transform(features3)
+dist = transF3[:,2]
+dist[y!=2] = 0
+plt.hist(dist[dist!=0], 200)
+plt.xlim([0,250])
+#plt.plot(dist)
+plt.show()
+
+#dist[dist  60] = 0
+ind_change = np.where(dist != 0)[0]
+img_check = np.zeros(dist.shape)
+listimg = lab3[:,:,1].reshape(lab3[:,:,1].shape[0]* lab3[:,:,1].shape[1],)
+print(listimg.shape)
+img_check[ind_change] = 255
+img_check = img_check.reshape(img3.shape[0],img3.shape[1])
+img_see = np.copy(lab3)
+img_see[img_check == 0] = 0  
+plt.figure(figsize = (20,20))
+plt.imshow(img_see, cmap = 'gray')
+plt.show()
+
+counts = np.bincount(img_seg2.flatten())
+background2 = np.argmax(counts)
+if(background2):
+  print("Changing 2")
+  img_seg2[img_seg2 == background2] = 255
+  img_seg2[img_seg2 == 0] = background2
+  img_seg2[img_seg2 == 255] = 0
+
+counts = np.bincount(img_seg3.flatten())
+background3 = np.argmax(counts)
+if(background3):
+  print("Changing 3")
+  img_seg3[img_seg3 == background3] = 255
+  img_seg3[img_seg3 == 0] = background3
+  img_seg3[img_seg3 == 255] = 0
+
+#img2
+clusters = np.unique(img_seg2)
+clusters = clusters[1:]
+mask1 = np.zeros(img_seg2.shape)
+mask2 = np.zeros(img_seg2.shape)
+mask1[img_seg2 == clusters[0]] = 255
+mask2[img_seg2 == clusters[1]] = 255
+
+hist1 = cv2.calcHist([lab2],[1],np.uint8(mask1),[255],[0,256])
+peak1 = np.argsort(-hist1.flatten())[0]
+hist2 = cv2.calcHist([lab2],[1],np.uint8(mask2),[255],[0,256])
+peak2 = np.argsort(-hist2.flatten())[0]
+
+if(peak1 > peak2):
+  cell2 = clusters[0]
+  cyto2 = clusters[1]
+else:
+  cell2 = clusters[1]
+  cyto2 = clusters[0]
+
+#Img3
+clusters = np.unique(img_seg3)
+clusters = clusters[1:]
+mask1 = np.zeros(img_seg3.shape)
+mask2 = np.zeros(img_seg3.shape)
+mask1[img_seg3 == clusters[0]] = 255
+mask2[img_seg3 == clusters[1]] = 255
+
+hist1 = cv2.calcHist([lab3],[1],np.uint8(mask1),[255],[0,256])
+peak1 = np.argsort(-hist1.flatten())[0]
+hist2 = cv2.calcHist([lab3],[1],np.uint8(mask2),[255],[0,256])
+peak2 = np.argsort(-hist2.flatten())[0]
+
+if(peak1 > peak2):
+  cell3 = clusters[0]
+  cyto3 = clusters[1]
+else:
+  cell3 = clusters[1]
+  cyto3 = clusters[0]
